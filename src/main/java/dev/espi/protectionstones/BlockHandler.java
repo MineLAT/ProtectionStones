@@ -36,6 +36,7 @@ import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -121,6 +122,13 @@ public class BlockHandler {
         // create region, and cancel if it fails
         if (!createPSRegion(p, b.getLocation(), blockOptions)) {
             e.setCancelled(true);
+        } else if (p.getGameMode() == GameMode.CREATIVE) {
+            final ItemStack item = e.getItemInHand();
+            if (item.getAmount() == 1) {
+                p.getInventory().setItem(e.getHand(), null);
+            } else {
+                item.setAmount(item.getAmount() - 1);
+            }
         }
     }
 
