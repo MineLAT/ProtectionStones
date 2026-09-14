@@ -25,7 +25,7 @@ restrict_obtaining = true
 # Enable or disable the use of this protection stone in specific worlds
 # "blacklist" mode prevents this protect block from being used in the worlds in "worlds"
 # "whitelist" mode allows this protect block to only be used in the worlds in "worlds"
-# Can be overriden with protectionstones.admin permission (including OP)!
+# Can be overridden with protectionstones.admin permission (including OP)!
 world_list_type = "blacklist"
 worlds = [
     "exampleworld1",
@@ -223,6 +223,10 @@ placing_bypasses_wg_passthrough = true
     # Prevents the block from being destroyed when exploded.
     # Recommended to keep true to prevent players from exploiting more protection stones with /ps unhide (when the block is destroyed)
     prevent_explode = true
+
+    # Prevents the block from being destroyed when exploded wind charge, this also affects explosions from enchantments wind_burst.
+    # Recommended to keep true if you don't want to ban all explosions, but don't want the region to explode using this method
+    prevent_wind_charge_explode = true
 
     # Destroys the protection stone region when block is exploded. Can be useful for PVP/Factions servers.
     # prevent_explode must be false for this to work.

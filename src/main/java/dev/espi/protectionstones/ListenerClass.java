@@ -31,14 +31,13 @@ import dev.espi.protectionstones.utils.UUIDCache;
 import dev.espi.protectionstones.utils.WGUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.ExplosionResult;
 import org.bukkit.Material;
 import org.bukkit.World;
-import org.bukkit.block.Block;
-import org.bukkit.block.BlockFace;
-import org.bukkit.block.BlockState;
-import org.bukkit.block.Furnace;
+import org.bukkit.block.*;
 import org.bukkit.command.CommandSender;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.AbstractWindCharge;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
@@ -307,6 +306,20 @@ public class ListenerClass implements Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onCrafter(CrafterCraftEvent e) {
+        if (e.getBlock().getType() != Material.CRAFTER) return;
+        if (!(e.getBlock().getState() instanceof Container container)) return;
+        for (ItemStack item : container.getInventory().getContents()) {
+            if (item == null) continue;
+            PSProtectBlock options = ProtectionStones.getBlockOptions(item);
+            if (options != null && !options.allowUseInCrafting) {
+                e.setCancelled(true);
+                e.setResult(new ItemStack(Material.AIR));
+                return;
+            }
+        }
+    }
 
     // -=-=-=- disable grindstone inventory to prevent infinite exp exploit with enchanted_effect option  -=-=-=-
     // see https://github.com/espidev/ProtectionStones/issues/324
@@ -360,7 +373,7 @@ public class ListenerClass implements Listener {
             event.setCancelled(true);
         }
     }
-    
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockFade(BlockFadeEvent e) {
         if (ProtectionStones.isProtectBlock(e.getBlock())) {
@@ -425,12 +438,14 @@ public class ListenerClass implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockExplode(BlockExplodeEvent e) {
-        explodeUtil(e.blockList(), e.getBlock().getLocation().getWorld());
+        boolean isWindCharge = e.getExplosionResult() == ExplosionResult.TRIGGER_BLOCK;
+        this.explodeUtil(e.blockList(), e.getBlock().getLocation().getWorld(), isWindCharge);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent e) {
-        explodeUtil(e.blockList(), e.getLocation().getWorld());
+        boolean isWindCharge = e.getEntity() instanceof AbstractWindCharge || e.getExplosionResult() == ExplosionResult.TRIGGER_BLOCK;
+        explodeUtil(e.blockList(), e.getLocation().getWorld(), isWindCharge);
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -438,13 +453,13 @@ public class ListenerClass implements Listener {
         if (!ProtectionStones.isProtectBlock(e.getBlock())) return;
 
         // events like ender dragon block break, wither running into block break, etc.
-        if (!blockExplodeUtil(e.getBlock().getWorld(), e.getBlock())) {
+        if (!blockExplodeUtil(e.getBlock().getWorld(), e.getBlock(), false)) {
             // if block shouldn't be exploded, cancel the event
             e.setCancelled(true);
         }
     }
 
-    private void explodeUtil(List<Block> blockList, World w) {
+    private void explodeUtil(List<Block> blockList, World w, boolean isWindCharge) {
         // loop through exploded blocks
         for (int i = 0; i < blockList.size(); i++) {
             Block b = blockList.get(i);
@@ -455,18 +470,22 @@ public class ListenerClass implements Listener {
                 i--;
             }
 
-            blockExplodeUtil(w, b);
+            blockExplodeUtil(w, b, isWindCharge);
         }
     }
 
     // returns whether the block is exploded
-    private boolean blockExplodeUtil(World w, Block b) {
+    private boolean blockExplodeUtil(World w, Block b, boolean isWindCharge) {
         if (ProtectionStones.isProtectBlock(b)) {
             String id = WGUtils.createPSID(b.getLocation());
             PSProtectBlock blockOptions = ProtectionStones.getBlockOptions(b);
 
             // if prevent explode
             if (blockOptions.preventExplode) {
+                return false;
+            }
+
+            if (isWindCharge && blockOptions.preventWindChargeExplode) {
                 return false;
             }
 

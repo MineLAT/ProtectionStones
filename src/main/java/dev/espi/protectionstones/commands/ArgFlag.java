@@ -118,8 +118,8 @@ public class ArgFlag implements PSCommandArg {
                 }
 
                 // add line based on flag type
+                boolean isGroupValueAll = groupfValue.equalsIgnoreCase("all") || groupfValue.isEmpty();
                 if (f instanceof StateFlag) { // allow/deny
-                    boolean isGroupValueAll = groupfValue.equalsIgnoreCase("all") || groupfValue.isEmpty();
 
                     TextComponent allow = new TextComponent((fValue == StateFlag.State.ALLOW ? ChatColor.WHITE : ChatColor.DARK_GRAY) + "Allow"),
                             deny = new TextComponent((fValue == StateFlag.State.DENY ? ChatColor.WHITE : ChatColor.DARK_GRAY) + "Deny");
@@ -138,14 +138,6 @@ public class ArgFlag implements PSCommandArg {
                         deny.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, suggestedCommand + flagGroup + page + ":" + flag + " deny"));
                     }
 
-                    // HACK: Prevent pvp flag value from being changed to none/null, if it is set to a value with the group flag set to all
-                    if (flag.equalsIgnoreCase("pvp") && isGroupValueAll) {
-                        if (fValue == StateFlag.State.DENY) {
-                            deny.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder(PSL.FLAG_PREVENT_EXPLOIT_HOVER.msg()).create()));
-                        } else if (fValue == StateFlag.State.ALLOW) {
-                            allow.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder(PSL.FLAG_PREVENT_EXPLOIT_HOVER.msg()).create()));
-                        }
-                    }
 
                     flagLine.addExtra(allow);
                     flagLine.addExtra(" ");
@@ -192,16 +184,18 @@ public class ArgFlag implements PSCommandArg {
                 }
 
                 // set hover and click task for flag group
-                BaseComponent[] hover;
-                if (fValue == null) {
-                    hover = new ComponentBuilder(PSL.FLAG_GUI_HOVER_CHANGE_GROUP_NULL.msg()).create();
-                } else {
-                    hover = new ComponentBuilder(PSL.FLAG_GUI_HOVER_CHANGE_GROUP.msg().replace("%group%", nextGroup)).create();
-                }
-                if (!nextGroup.equals(groupfValue)) { // only display hover message if the group is not the same
+                // HACK: Prevent pvp flag group from being changed when set to "all" to prevent exploit
+                boolean isPvpExploitCase = flag.equalsIgnoreCase("pvp") && isGroupValueAll;
+                if (isPvpExploitCase) {
+                    BaseComponent[] hover = new ComponentBuilder(PSL.FLAG_PREVENT_EXPLOIT_HOVER.msg()).create();
                     groupChange.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, hover));
+                } else if (!nextGroup.equals(groupfValue)) {
+                    BaseComponent[] hover = fValue == null
+                            ? new ComponentBuilder(PSL.FLAG_GUI_HOVER_CHANGE_GROUP_NULL.msg()).create()
+                            : new ComponentBuilder(PSL.FLAG_GUI_HOVER_CHANGE_GROUP.msg().replace("%group%", nextGroup)).create();
+                    groupChange.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, hover));
+                    groupChange.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, suggestedCommand + "-g " + nextGroup + " " + page + ":" + flag + " " + fValue));
                 }
-                groupChange.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, suggestedCommand + "-g " + nextGroup + " " + page + ":" + flag + " " + fValue));
 
                 flagLine.addExtra(groupChange);
                 // send message
@@ -251,7 +245,7 @@ public class ArgFlag implements PSCommandArg {
 
         // /ps flag GUI
         if (args.length == 1) return openFlagGUI(p, r, 0);
-        
+
         // go to GUI page
         if (args.length == 2) {
             if (MiscUtil.isValidInteger(args[1])) {
